@@ -74,14 +74,13 @@ export default function Admin() {
             <p className="text-gray-400 font-sans mb-8 max-w-md mx-auto">
               This page is for theater administrators only. Please sign in with your authorized Google account to continue.
             </p>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleLogin}
-              className="bg-white text-retro-navy font-retro px-8 py-4 rounded-xl flex items-center gap-3 mx-auto shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+              className="bg-white text-retro-navy font-retro px-8 py-4 rounded-xl flex items-center gap-3 mx-auto shadow-[0_0_20px_rgba(255,255,255,0.3)] cursor-pointer active:scale-95 transition-transform"
             >
               <LogIn className="w-5 h-5" />
               SIGN IN WITH GOOGLE
-            </motion.button>
+            </button>
           </div>
         ) : isAdmin ? (
           <div className="space-y-12">
@@ -94,17 +93,16 @@ export default function Admin() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <motion.div
-                whileTap={{ scale: 0.98 }}
+              <div
                 onClick={() => setIsAddFormOpen(true)}
-                className="bg-retro-navy/50 border-4 border-dashed border-retro-cyan/30 rounded-2xl p-12 text-center cursor-pointer md:hover:border-retro-cyan transition-all group"
+                className="bg-retro-navy/50 border-4 border-dashed border-retro-cyan/30 rounded-2xl p-12 text-center cursor-pointer md:hover:border-retro-cyan transition-all group active:scale-[0.98]"
               >
                 <div className="w-16 h-16 bg-retro-cyan/10 rounded-full flex items-center justify-center mx-auto mb-4 md:group-hover:bg-retro-cyan/20 transition-colors">
                   <Plus className="w-8 h-8 text-retro-cyan" />
                 </div>
                 <h3 className="font-display text-2xl mb-2">ADD NEW THEATER</h3>
                 <p className="text-gray-500 text-sm">Contribute a new drive-in location to the database.</p>
-              </motion.div>
+              </div>
 
               <div className="bg-retro-navy/50 border-4 border-retro-pink/30 rounded-2xl p-12 text-center opacity-50">
                 <div className="w-16 h-16 bg-retro-pink/10 rounded-full flex items-center justify-center mx-auto mb-4">

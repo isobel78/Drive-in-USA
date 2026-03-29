@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTheatersFromMap, Theater } from '../services/theaterService';
@@ -6,7 +6,8 @@ import { TheaterCard } from '../components/TheaterCard';
 import { TheaterModal } from '../components/TheaterModal';
 import TheaterMap from '../components/TheaterMap';
 import { calculateDistance } from '../lib/utils';
-import { Link } from 'react-router-dom';
+
+type LocationChoice = 'granted' | 'denied' | 'later' | null;
 
 export default function Home() {
   const [theaters, setTheaters] = useState<Theater[]>([]);
@@ -18,30 +19,60 @@ export default function Home() {
   const [sortMethod, setSortMethod] = useState<'nearest' | 'alphabetical' | 'state'>('alphabetical');
   const [maxDistance, setMaxDistance] = useState<number | null>(null);
   const [showFullMap, setShowFullMap] = useState(false);
+  const [locationChoice, setLocationChoice] = useState<LocationChoice>(() => 
+    localStorage.getItem('locationChoice') as LocationChoice
+  );
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     if (navigator.geolocation) {
+      setLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const newLoc = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(newLoc);
           setSortMethod('nearest');
           setShowLocationPrompt(false);
-          localStorage.setItem('locationPromptDismissed', 'true');
-          localStorage.setItem('locationPermissionGranted', 'true');
+          setLocationChoice('granted');
+          localStorage.setItem('locationChoice', 'granted');
+          setLoading(false);
         },
         (err) => {
           console.warn('Geolocation error:', err);
+          setLoading(false);
           setShowLocationPrompt(false);
-          localStorage.setItem('locationPromptDismissed', 'true');
-          localStorage.setItem('locationPermissionGranted', 'false');
+          
+          let message = "Could not get your location.";
+          if (err.code === err.PERMISSION_DENIED) {
+            message = "Location access was denied. Please enable it in your browser settings to find the nearest theaters.";
+            setLocationChoice('denied');
+            localStorage.setItem('locationChoice', 'denied');
+          } else {
+            // For other errors, we might want to let them try again later
+            setLocationChoice('later');
+            localStorage.setItem('locationChoice', 'later');
+          }
+          
+          if (err.code === err.POSITION_UNAVAILABLE) {
+            message = "Location information is unavailable.";
+          } else if (err.code === err.TIMEOUT) {
+            message = "The request to get user location timed out.";
+          }
+          alert(message);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 60000
         }
       );
+    } else {
+      alert("Geolocation is not supported by this browser.");
     }
-  };
+  }, []);
 
   const resetHome = () => {
     setSearchQuery('');
@@ -51,7 +82,7 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getTheatersFromMap();
@@ -61,20 +92,15 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
 
-    const hasPrompted = localStorage.getItem('locationPromptDismissed');
-    const wasGranted = localStorage.getItem('locationPermissionGranted');
-    
-    if (wasGranted === 'true') {
-      requestLocation();
-    } else if (!hasPrompted && !userLocation) {
+    if (locationChoice === null && !userLocation) {
       setShowLocationPrompt(true);
     }
-  }, []);
+  }, [loadData, locationChoice, userLocation]);
 
   const sortedTheaters = useMemo(() => {
     let result = [...theaters];
@@ -133,30 +159,36 @@ export default function Home() {
           className="relative z-10"
         >
           <h1 className="font-display text-6xl md:text-8xl text-white neon-text mb-2 tracking-tighter">
-            <Link to="/" onClick={resetHome}>DRIVE-IN <span className="text-retro-cyan">USA</span></Link>
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                resetHome();
+              }}
+              className="cursor-pointer bg-transparent border-none p-0"
+            >
+              DRIVE-IN <span className="text-retro-cyan">USA</span>
+            </button>
           </h1>
           <p className="font-retro text-retro-yellow text-xl tracking-[0.2em] uppercase mb-6">
             Find Your Nearest Screen
           </p>
           
           <div className="flex flex-wrap justify-center gap-4 mx-auto">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={() => setShowFullMap(!showFullMap)}
-              className="retro-button text-lg px-8 py-3 flex items-center gap-2 touch-manipulation"
+              className="retro-button text-lg px-8 py-3 flex items-center gap-2 touch-manipulation cursor-pointer active:scale-95"
             >
               {showFullMap ? <X className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
               {showFullMap ? 'CLOSE MAP' : 'VIEW FULL MAP'}
-            </motion.button>
+            </button>
 
-            <motion.button
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={loadData}
-              className="retro-button bg-retro-cyan text-retro-navy border-white text-lg px-8 py-3 flex items-center gap-2 touch-manipulation"
+              className="retro-button bg-retro-cyan text-retro-navy border-white text-lg px-8 py-3 flex items-center gap-2 touch-manipulation cursor-pointer active:scale-95"
             >
               <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'LOADING...' : 'REFRESH LIST'}
-            </motion.button>
+            </button>
           </div>
         </motion.div>
 
@@ -218,13 +250,12 @@ export default function Home() {
                 }
               }}
               className={`
-                flex items-center gap-2 px-4 py-2 font-retro text-xs border-2 transition-all touch-manipulation
+                flex items-center gap-2 px-4 py-2 font-retro text-xs border-2 transition-all touch-manipulation cursor-pointer active:scale-95 [transform:skewX(-10deg)]
                 ${sortMethod === method.id 
                   ? 'bg-retro-cyan text-retro-navy border-white shadow-[0_0_10px_rgba(0,255,255,0.5)]' 
                   : 'bg-retro-navy text-retro-cyan border-retro-cyan/50 md:hover:border-retro-cyan'}
                 ${method.id === 'nearest' && !userLocation ? 'animate-pulse border-retro-pink/50' : ''}
               `}
-              style={{ transform: 'skewX(-10deg)' }}
             >
               <method.icon className="w-3 h-3" />
               {method.label}
@@ -232,11 +263,11 @@ export default function Home() {
           ))}
         </div>
 
-        {!userLocation && (
+        {!userLocation && (locationChoice === 'later' || locationChoice === 'granted') && (
           <div className="flex justify-center pt-2">
             <button 
               onClick={() => setShowLocationPrompt(true)}
-              className="text-[10px] font-retro text-retro-pink md:hover:text-white transition-colors flex items-center gap-1 uppercase tracking-widest"
+              className="text-[10px] font-retro text-retro-pink md:hover:text-white transition-colors flex items-center gap-1 uppercase tracking-widest cursor-pointer active:scale-95"
             >
               <Compass className="w-3 h-3" />
               Enable Location Services
@@ -261,7 +292,7 @@ export default function Home() {
                 key={dist.label}
                 onClick={() => setMaxDistance(dist.value)}
                 className={`
-                  px-3 py-1 font-retro text-[10px] border transition-all touch-manipulation
+                  px-3 py-1 font-retro text-[10px] border transition-all touch-manipulation cursor-pointer active:scale-95
                   ${maxDistance === dist.value
                     ? 'bg-retro-pink text-white border-white shadow-[0_0_8px_rgba(255,0,128,0.5)]'
                     : 'bg-retro-navy text-retro-pink border-retro-pink/30 md:hover:border-retro-pink'}
@@ -355,11 +386,19 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+            onClick={() => {
+              setShowLocationPrompt(false);
+              if (locationChoice === null) {
+                setLocationChoice('later');
+                localStorage.setItem('locationChoice', 'later');
+              }
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               className="max-w-md w-full bg-retro-navy border-4 border-retro-cyan rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(0,255,255,0.3)]"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="w-20 h-20 bg-retro-cyan/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-retro-cyan animate-pulse">
                 <Compass className="w-10 h-10 text-retro-cyan" />
@@ -374,20 +413,26 @@ export default function Home() {
               </p>
               
               <div className="space-y-4">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={requestLocation}
-                  className="w-full bg-retro-cyan text-retro-navy font-retro py-4 rounded-xl text-lg shadow-[0_0_20px_rgba(0,255,255,0.4)] md:hover:shadow-[0_0_30px_rgba(0,255,255,0.6)] transition-all touch-manipulation"
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestLocation();
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="w-full bg-retro-cyan text-retro-navy font-retro py-4 rounded-xl text-lg shadow-[0_0_20px_rgba(0,255,255,0.4)] md:hover:shadow-[0_0_30px_rgba(0,255,255,0.6)] transition-all touch-manipulation cursor-pointer active:scale-95 select-none"
                 >
                   ENABLE LOCATION
-                </motion.button>
+                </button>
                 
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setShowLocationPrompt(false);
-                    localStorage.setItem('locationPromptDismissed', 'true');
+                    setLocationChoice('later');
+                    localStorage.setItem('locationChoice', 'later');
                   }}
-                  className="text-gray-500 font-retro text-sm uppercase tracking-widest md:hover:text-white transition-colors touch-manipulation"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="text-gray-500 font-retro text-sm uppercase tracking-widest md:hover:text-white transition-colors touch-manipulation cursor-pointer active:scale-95 select-none"
                 >
                   Maybe Later
                 </button>

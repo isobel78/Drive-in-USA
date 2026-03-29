@@ -12,12 +12,16 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
   return (
     <AnimatePresence>
       {theater && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, rotate: -2 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             exit={{ scale: 0.9, opacity: 0, rotate: 2 }}
             className="relative w-full max-w-lg bg-retro-navy border-4 border-white rounded-xl overflow-hidden shadow-[0_0_50px_rgba(255,0,255,0.3)]"
+            onClick={(e) => e.stopPropagation()}
           >
           {/* Header with retro pattern */}
           <div className="h-32 bg-retro-pink relative overflow-hidden flex items-center justify-center">
@@ -27,7 +31,7 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
             </h2>
             <button 
               onClick={onClose}
-              className="absolute top-2 right-2 p-2 bg-white text-retro-pink rounded-full md:hover:bg-retro-yellow transition-colors touch-manipulation"
+              className="absolute top-2 right-2 p-2 bg-white text-retro-pink rounded-full md:hover:bg-retro-yellow transition-colors touch-manipulation cursor-pointer active:scale-90"
             >
               <X className="w-6 h-6" />
             </button>
@@ -56,7 +60,7 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
             <div className="grid grid-cols-2 gap-4">
               <button 
                 onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${theater.name} ${theater.address} ${theater.city}`)}`, '_blank')}
-                className="flex items-center justify-center gap-2 bg-retro-cyan text-retro-navy font-retro py-3 rounded-lg md:hover:bg-white transition-colors touch-manipulation"
+                className="flex items-center justify-center gap-2 bg-retro-cyan text-retro-navy font-retro py-3 rounded-lg md:hover:bg-white transition-colors touch-manipulation cursor-pointer active:scale-95"
               >
                 <Navigation className="w-5 h-5" />
                 GET DIRECTIONS
@@ -65,7 +69,7 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
               {theater.website ? (
                 <button 
                   onClick={() => window.open(theater.website, '_blank')}
-                  className="flex items-center justify-center gap-2 bg-retro-pink text-white font-retro py-3 rounded-lg md:hover:bg-retro-cyan transition-colors touch-manipulation"
+                  className="flex items-center justify-center gap-2 bg-retro-pink text-white font-retro py-3 rounded-lg md:hover:bg-retro-cyan transition-colors touch-manipulation cursor-pointer active:scale-95"
                 >
                   <Globe className="w-5 h-5" />
                   WEBSITE

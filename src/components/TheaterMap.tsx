@@ -67,7 +67,8 @@ const TheaterMap: React.FC<TheaterMapProps> = ({ theaters, onTheaterSelect, user
         center={userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter} 
         zoom={userLocation ? 6 : zoom} 
         style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false}
+        touchZoom={true}
       >
         <MapResizer />
         <TileLayer
@@ -102,7 +103,7 @@ const TheaterMap: React.FC<TheaterMapProps> = ({ theaters, onTheaterSelect, user
                       console.log('View Details clicked for:', theater.name);
                       onTheaterSelect(theater);
                     }}
-                    className="mt-2 text-[10px] bg-retro-pink text-white px-2 py-1 rounded uppercase font-bold w-full touch-manipulation"
+                    className="mt-2 text-[10px] bg-retro-pink text-white px-2 py-1 rounded uppercase font-bold w-full touch-manipulation cursor-pointer active:scale-95"
                   >
                     View Details
                   </button>

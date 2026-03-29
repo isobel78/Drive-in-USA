@@ -87,7 +87,7 @@ export const AddTheaterForm: React.FC<AddTheaterFormProps> = ({ isOpen, onClose,
               </h2>
               <button 
                 onClick={onClose}
-                className="p-1 md:hover:bg-white/20 rounded-full transition-colors text-retro-navy"
+                className="p-1 md:hover:bg-white/20 rounded-full transition-colors text-retro-navy cursor-pointer active:scale-90"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -215,14 +215,13 @@ export const AddTheaterForm: React.FC<AddTheaterFormProps> = ({ isOpen, onClose,
               )}
 
               <div className="pt-4">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
+                <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`w-full bg-retro-pink text-white font-retro py-4 rounded-xl text-lg shadow-[0_0_20px_rgba(255,0,128,0.4)] md:hover:shadow-[0_0_30px_rgba(255,0,128,0.6)] transition-all touch-manipulation uppercase tracking-widest ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full bg-retro-pink text-white font-retro py-4 rounded-xl text-lg shadow-[0_0_20px_rgba(255,0,128,0.4)] md:hover:shadow-[0_0_30px_rgba(255,0,128,0.6)] transition-all touch-manipulation uppercase tracking-widest cursor-pointer active:scale-95 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isSubmitting ? 'Adding...' : 'Add to Collection'}
-                </motion.button>
+                </button>
               </div>
             </form>
           </motion.div>

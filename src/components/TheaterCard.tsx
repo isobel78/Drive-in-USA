@@ -11,10 +11,9 @@ interface TheaterCardProps {
 
 export const TheaterCard: React.FC<TheaterCardProps> = ({ theater, distance, onClick }) => {
   return (
-    <motion.div
-      whileTap={{ scale: 0.98 }}
+    <div
       onClick={onClick}
-      className="bg-retro-navy/80 border-2 border-retro-cyan p-4 rounded-lg cursor-pointer relative overflow-hidden group touch-manipulation"
+      className="bg-retro-navy/80 border-2 border-retro-cyan p-4 rounded-lg cursor-pointer relative overflow-hidden group touch-manipulation active:scale-[0.98] transition-transform"
       style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.2)' }}
     >
       <div className="absolute top-0 right-0 p-2 bg-retro-pink text-white text-xs font-retro transform translate-x-1 -translate-y-1 rotate-12">
@@ -36,7 +35,7 @@ export const TheaterCard: React.FC<TheaterCardProps> = ({ theater, distance, onC
             e.stopPropagation();
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${theater.name} ${theater.address} ${theater.city}`)}`, '_blank');
           }}
-          className="flex-1 flex items-center justify-center gap-2 bg-retro-cyan/20 md:hover:bg-retro-cyan/40 border border-retro-cyan text-retro-cyan py-2 rounded font-retro text-sm transition-colors touch-manipulation"
+          className="flex-1 flex items-center justify-center gap-2 bg-retro-cyan/20 md:hover:bg-retro-cyan/40 border border-retro-cyan text-retro-cyan py-2 rounded font-retro text-sm transition-colors touch-manipulation cursor-pointer active:scale-95"
         >
           <Navigation className="w-4 h-4" />
           DIRECTIONS
@@ -48,12 +47,12 @@ export const TheaterCard: React.FC<TheaterCardProps> = ({ theater, distance, onC
               e.stopPropagation();
               window.open(theater.website, '_blank');
             }}
-            className="p-2 bg-retro-pink/20 md:hover:bg-retro-pink/40 border border-retro-pink text-retro-pink rounded transition-colors touch-manipulation"
+            className="p-2 bg-retro-pink/20 md:hover:bg-retro-pink/40 border border-retro-pink text-retro-pink rounded transition-colors touch-manipulation cursor-pointer active:scale-95"
           >
             <Globe className="w-4 h-4" />
           </button>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
