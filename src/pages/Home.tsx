@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getTheatersFromMap, Theater } from '../services/theaterService';
+import { getTheatersFromMap } from '../services/theaterService';
+import { Theater } from '../types';
 import { TheaterCard } from '../components/TheaterCard';
 import { TheaterModal } from '../components/TheaterModal';
 import TheaterMap from '../components/TheaterMap';
 import { calculateDistance } from '../lib/utils';
 
 type LocationChoice = 'granted' | 'denied' | 'later' | null;
+
+function saveChoice(value: string) {
+  try {
+    localStorage.setItem('locationChoice', value);
+  } catch {}
+}
 
 export default function Home() {
   const [theaters, setTheaters] = useState<Theater[]>([]);
@@ -19,9 +26,13 @@ export default function Home() {
   const [sortMethod, setSortMethod] = useState<'nearest' | 'alphabetical' | 'state'>('alphabetical');
   const [maxDistance, setMaxDistance] = useState<number | null>(null);
   const [showFullMap, setShowFullMap] = useState(false);
-  const [locationChoice, setLocationChoice] = useState<LocationChoice>(() => 
-    localStorage.getItem('locationChoice') as LocationChoice
-  );
+  const [locationChoice, setLocationChoice] = useState<LocationChoice>(() => {
+    try {
+      return localStorage.getItem('locationChoice') as LocationChoice;
+    } catch {
+      return null;
+    }
+  });
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
   const requestLocation = useCallback(() => {
@@ -37,7 +48,7 @@ export default function Home() {
           setSortMethod('nearest');
           setShowLocationPrompt(false);
           setLocationChoice('granted');
-          localStorage.setItem('locationChoice', 'granted');
+          saveChoice('granted');
           setLoading(false);
         },
         (err) => {
@@ -49,11 +60,11 @@ export default function Home() {
           if (err.code === err.PERMISSION_DENIED) {
             message = "Location access was denied. Please enable it in your browser settings to find the nearest theaters.";
             setLocationChoice('denied');
-            localStorage.setItem('locationChoice', 'denied');
+            saveChoice('denied');
           } else {
             // For other errors, we might want to let them try again later
             setLocationChoice('later');
-            localStorage.setItem('locationChoice', 'later');
+            saveChoice('later');
           }
           
           if (err.code === err.POSITION_UNAVAILABLE) {
@@ -61,7 +72,7 @@ export default function Home() {
           } else if (err.code === err.TIMEOUT) {
             message = "The request to get user location timed out.";
           }
-          alert(message);
+          setError(message);
         },
         {
           enableHighAccuracy: false,
@@ -70,7 +81,7 @@ export default function Home() {
         }
       );
     } else {
-      alert("Geolocation is not supported by this browser.");
+      setError("Geolocation is not supported by this browser.");
     }
   }, []);
 
@@ -338,7 +349,7 @@ export default function Home() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
                   >
                     <TheaterCard
                       theater={theater}
@@ -385,12 +396,21 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+            role="button"
+            tabIndex={-1}
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md touch-manipulation"
             onClick={() => {
               setShowLocationPrompt(false);
               if (locationChoice === null) {
                 setLocationChoice('later');
-                localStorage.setItem('locationChoice', 'later');
+                saveChoice('later');
+              }
+            }}
+            onTouchEnd={() => {
+              setShowLocationPrompt(false);
+              if (locationChoice === null) {
+                setLocationChoice('later');
+                saveChoice('later');
               }
             }}
           >
@@ -429,7 +449,7 @@ export default function Home() {
                     e.stopPropagation();
                     setShowLocationPrompt(false);
                     setLocationChoice('later');
-                    localStorage.setItem('locationChoice', 'later');
+                    saveChoice('later');
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className="text-gray-500 font-retro text-sm uppercase tracking-widest md:hover:text-white transition-colors touch-manipulation cursor-pointer active:scale-95 select-none"

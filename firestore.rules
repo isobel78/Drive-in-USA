@@ -29,15 +29,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-             request.auth.token.email == "isobel78@gmail.com" && 
-             request.auth.token.email_verified == true;
+             request.auth.token.email == "isobel78@gmail.com";
     }
 
     function isValidTheater(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.address is string && data.address.size() > 0 && data.address.size() < 300 &&
              data.city is string && data.city.size() > 0 && data.city.size() < 100 &&
-             data.state is string && data.state.size() == 2 &&
+             data.state is string && data.state.size() >= 2 && data.state.size() < 50 &&
              data.state_long is string && data.state_long.size() > 0 && data.state_long.size() < 100 &&
              data.lat is number &&
              data.lng is number &&

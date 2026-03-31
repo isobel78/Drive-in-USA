@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, MapPin, Navigation, Globe, Clock, Star } from 'lucide-react';
-import { Theater } from '../services/theaterService';
+import { Theater } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface TheaterModalProps {
@@ -13,8 +13,11 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
     <AnimatePresence>
       {theater && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          role="button"
+          tabIndex={-1}
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm touch-manipulation"
           onClick={onClose}
+          onTouchEnd={onClose}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, rotate: -2 }}
@@ -22,6 +25,7 @@ export const TheaterModal: React.FC<TheaterModalProps> = ({ theater, onClose }) 
             exit={{ scale: 0.9, opacity: 0, rotate: 2 }}
             className="relative w-full max-w-lg bg-retro-navy border-4 border-white rounded-xl overflow-hidden shadow-[0_0_50px_rgba(255,0,255,0.3)]"
             onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
           {/* Header with retro pattern */}
           <div className="h-32 bg-retro-pink relative overflow-hidden flex items-center justify-center">

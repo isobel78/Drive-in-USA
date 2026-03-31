@@ -1,12 +1,15 @@
 import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Theater } from '../services/theaterService';
+import { Theater } from '../types';
 
 // Fix for default marker icon
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// @ts-ignore
+L.Browser.touch = false;
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
@@ -69,6 +72,7 @@ const TheaterMap: React.FC<TheaterMapProps> = ({ theaters, onTheaterSelect, user
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={false}
         touchZoom={true}
+        dragging={true}
       >
         <MapResizer />
         <TileLayer

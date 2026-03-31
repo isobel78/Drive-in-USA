@@ -72,3 +72,6 @@ body {
   border: none !important;
 }
 
+div[onClick], [data-clickable] {
+  touch-action: manipulation;
+}

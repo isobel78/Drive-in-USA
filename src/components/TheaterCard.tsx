@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin, Navigation, Globe, Info } from 'lucide-react';
-import { Theater } from '../services/theaterService';
+import { Theater } from '../types';
 import { motion } from 'motion/react';
 
 interface TheaterCardProps {
@@ -12,9 +12,16 @@ interface TheaterCardProps {
 export const TheaterCard: React.FC<TheaterCardProps> = ({ theater, distance, onClick }) => {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="bg-retro-navy/80 border-2 border-retro-cyan p-4 rounded-lg cursor-pointer relative overflow-hidden group touch-manipulation active:scale-[0.98] transition-transform"
-      style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.2)' }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="w-full text-left bg-retro-navy/80 border-2 border-retro-cyan p-4 rounded-lg cursor-pointer relative overflow-hidden group touch-manipulation active:scale-[0.98] transition-transform"
     >
       <div className="absolute top-0 right-0 p-2 bg-retro-pink text-white text-xs font-retro transform translate-x-1 -translate-y-1 rotate-12">
         {distance ? `${distance.toFixed(1)} mi` : 'DRIVE-IN'}
