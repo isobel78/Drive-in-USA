@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, User } from '../firebase';
 import { AddTheaterForm } from '../components/AddTheaterForm';
+import { ScrollToTop } from '../components/ScrollToTop';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, LogOut, Shield, Plus, ArrowLeft, X, Edit2, Trash2, MapPin, Globe, Search, SortAsc } from 'lucide-react';
+import { LogIn, LogOut, Shield, Plus, ArrowLeft, X, Edit2, Trash2, MapPin, Globe, Search, SortAsc, AlertCircle, Film } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTheatersFromMap, deleteTheater } from '../services/theaterService';
 import { Theater } from '../types';
@@ -17,6 +18,7 @@ export default function Admin() {
   const [editingTheater, setEditingTheater] = useState<Theater | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'state'>('name');
+  const [showNeedsAttention, setShowNeedsAttention] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
   const navigate = useNavigate();
@@ -69,6 +71,19 @@ export default function Admin() {
     }
   };
 
+  const hasMissingFields = (t: Theater) => {
+    const isBlank = (val: any) => val === null || val === undefined || (typeof val === 'string' && val.trim() === '');
+    return isBlank(t.name) || 
+           isBlank(t.address) || 
+           isBlank(t.city) || 
+           isBlank(t.state) || 
+           isBlank(t.state_long) || 
+           t.lat === null || t.lat === undefined || isNaN(t.lat) ||
+           t.lng === null || t.lng === undefined || isNaN(t.lng) ||
+           isBlank(t.description) || 
+           isBlank(t.website);
+  };
+
   const filteredAndSortedTheaters = useMemo(() => {
     let result = [...theaters];
     
@@ -81,18 +96,24 @@ export default function Admin() {
       );
     }
 
+    if (showNeedsAttention) {
+      result = result.filter(hasMissingFields);
+    }
+
     result.sort((a, b) => {
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name);
       } else {
-        const stateCompare = a.state.localeCompare(b.state);
+        const stateA = a.state_long || a.state;
+        const stateB = b.state_long || b.state;
+        const stateCompare = stateA.localeCompare(stateB);
         if (stateCompare !== 0) return stateCompare;
         return a.name.localeCompare(b.name);
       }
     });
 
     return result;
-  }, [theaters, searchQuery, sortBy]);
+  }, [theaters, searchQuery, sortBy, showNeedsAttention]);
 
   if (loading) {
     return (
@@ -165,6 +186,18 @@ export default function Admin() {
               </div>
               
               <div className="flex gap-4 w-full md:w-auto">
+                <button
+                  onClick={() => setShowNeedsAttention(!showNeedsAttention)}
+                  className={`px-4 py-2 text-xs font-retro uppercase transition-all rounded-xl border-2 flex items-center gap-2 touch-manipulation cursor-pointer active:scale-95 ${
+                    showNeedsAttention 
+                      ? 'bg-retro-pink text-white border-white shadow-[0_0_10px_rgba(255,0,128,0.5)]' 
+                      : 'bg-retro-navy text-retro-pink border-retro-pink/50 md:hover:border-retro-pink'
+                  }`}
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  Needs Attention
+                </button>
+
                 <div className="flex bg-retro-navy border-2 border-white/10 rounded-xl overflow-hidden">
                   <button 
                     onClick={() => setSortBy('name')}
@@ -193,60 +226,245 @@ export default function Admin() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <AnimatePresence mode="popLayout">
-                {filteredAndSortedTheaters.map((theater) => (
-                  <motion.div
-                    key={theater.id}
-                    layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="bg-retro-navy/80 border-2 border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-retro-cyan/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-display text-xl text-retro-yellow uppercase tracking-wider">{theater.name}</h3>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 font-sans">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-retro-pink" />
-                          {theater.city}, {theater.state}
-                        </span>
-                        {theater.website && (
-                          <span className="flex items-center gap-1">
-                            <Globe className="w-3 h-3 text-retro-cyan" />
-                            {new URL(theater.website).hostname}
-                          </span>
-                        )}
+            <div className="space-y-8">
+              {sortBy === 'state' ? (
+                Object.entries(
+                  filteredAndSortedTheaters.reduce((acc, t) => {
+                    const stateName = t.state_long || t.state;
+                    if (!acc[stateName]) acc[stateName] = [];
+                    acc[stateName].push(t);
+                    return acc;
+                  }, {} as Record<string, Theater[]>)
+                )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([stateName, stateTheaters]) => (
+                  <div key={stateName} className="space-y-4">
+                    <motion.h2 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="font-display text-2xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-5 h-5" />
+                        {stateName}
                       </div>
+                      <span className="font-retro text-xs bg-retro-cyan/10 px-2 py-1 rounded-md border border-retro-cyan/30">
+                        {stateTheaters.length} {stateTheaters.length === 1 ? 'THEATER' : 'THEATERS'}
+                      </span>
+                    </motion.h2>
+                    <div className="grid grid-cols-1 gap-4">
+                      <AnimatePresence mode="popLayout">
+                        {stateTheaters.map((theater) => (
+                          <motion.div
+                            key={theater.id}
+                            layout
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="bg-retro-navy/80 border-2 border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-retro-cyan/50 transition-colors"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-display text-xl text-retro-yellow uppercase tracking-wider">{theater.name}</h3>
+                                {hasMissingFields(theater) && (
+                                  <span title="Missing information">
+                                    <AlertCircle className="w-4 h-4 text-retro-pink animate-pulse" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 font-sans">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-retro-pink" />
+                                  {theater.city}, {theater.state}
+                                </span>
+                                {theater.website && (
+                                  <span className="flex items-center gap-1">
+                                    <Globe className="w-3 h-3 text-retro-cyan" />
+                                    {new URL(theater.website).hostname}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 self-end md:self-center">
+                              <button 
+                                onClick={() => {
+                                  setEditingTheater(theater);
+                                  setIsAddFormOpen(true);
+                                }}
+                                className="p-2 bg-retro-cyan/10 text-retro-cyan border border-retro-cyan/30 rounded-lg hover:bg-retro-cyan hover:text-retro-navy transition-all active:scale-90"
+                                title="Edit Theater"
+                              >
+                                <Edit2 className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => theater.id && handleDelete(theater.id)}
+                                disabled={isDeleting === theater.id}
+                                className="p-2 bg-retro-pink/10 text-retro-pink border border-retro-pink/30 rounded-lg hover:bg-retro-pink hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                                title="Delete Theater"
+                              >
+                                {isDeleting === theater.id ? (
+                                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <Trash2 className="w-5 h-5" />
+                                )}
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
-                    
-                    <div className="flex items-center gap-2 self-end md:self-center">
-                      <button 
-                        onClick={() => {
-                          setEditingTheater(theater);
-                          setIsAddFormOpen(true);
-                        }}
-                        className="p-2 bg-retro-cyan/10 text-retro-cyan border border-retro-cyan/30 rounded-lg hover:bg-retro-cyan hover:text-retro-navy transition-all active:scale-90"
-                        title="Edit Theater"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => theater.id && handleDelete(theater.id)}
-                        disabled={isDeleting === theater.id}
-                        className="p-2 bg-retro-pink/10 text-retro-pink border border-retro-pink/30 rounded-lg hover:bg-retro-pink hover:text-white transition-all active:scale-90 disabled:opacity-50"
-                        title="Delete Theater"
-                      >
-                        {isDeleting === theater.id ? (
-                          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Trash2 className="w-5 h-5" />
-                        )}
-                      </button>
+                  </div>
+                ))
+              ) : sortBy === 'name' ? (
+                Object.entries(
+                  filteredAndSortedTheaters.reduce((acc, t) => {
+                    const firstChar = t.name.charAt(0).toUpperCase();
+                    const firstLetter = /^[0-9]/.test(firstChar) ? '#' : firstChar;
+                    if (!acc[firstLetter]) acc[firstLetter] = [];
+                    acc[firstLetter].push(t);
+                    return acc;
+                  }, {} as Record<string, Theater[]>)
+                )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([letter, letterTheaters]) => (
+                  <div key={letter} className="space-y-4">
+                    <motion.h2 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="font-display text-2xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center gap-2"
+                    >
+                      <Film className="w-5 h-5" />
+                      {letter}
+                    </motion.h2>
+                    <div className="grid grid-cols-1 gap-4">
+                      <AnimatePresence mode="popLayout">
+                        {letterTheaters.map((theater) => (
+                          <motion.div
+                            key={theater.id}
+                            layout
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="bg-retro-navy/80 border-2 border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-retro-cyan/50 transition-colors"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-display text-xl text-retro-yellow uppercase tracking-wider">{theater.name}</h3>
+                                {hasMissingFields(theater) && (
+                                  <span title="Missing information">
+                                    <AlertCircle className="w-4 h-4 text-retro-pink animate-pulse" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 font-sans">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-retro-pink" />
+                                  {theater.city}, {theater.state}
+                                </span>
+                                {theater.website && (
+                                  <span className="flex items-center gap-1">
+                                    <Globe className="w-3 h-3 text-retro-cyan" />
+                                    {new URL(theater.website).hostname}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 self-end md:self-center">
+                              <button 
+                                onClick={() => {
+                                  setEditingTheater(theater);
+                                  setIsAddFormOpen(true);
+                                }}
+                                className="p-2 bg-retro-cyan/10 text-retro-cyan border border-retro-cyan/30 rounded-lg hover:bg-retro-cyan hover:text-retro-navy transition-all active:scale-90"
+                                title="Edit Theater"
+                              >
+                                <Edit2 className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => theater.id && handleDelete(theater.id)}
+                                disabled={isDeleting === theater.id}
+                                className="p-2 bg-retro-pink/10 text-retro-pink border border-retro-pink/30 rounded-lg hover:bg-retro-pink hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                                title="Delete Theater"
+                              >
+                                {isDeleting === theater.id ? (
+                                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <Trash2 className="w-5 h-5" />
+                                )}
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                  </div>
+                ))
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  <AnimatePresence mode="popLayout">
+                    {filteredAndSortedTheaters.map((theater) => (
+                      <motion.div
+                        key={theater.id}
+                        layout
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="bg-retro-navy/80 border-2 border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-retro-cyan/50 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-display text-xl text-retro-yellow uppercase tracking-wider">{theater.name}</h3>
+                            {hasMissingFields(theater) && (
+                              <span title="Missing information">
+                                <AlertCircle className="w-4 h-4 text-retro-pink animate-pulse" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 font-sans">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-retro-pink" />
+                              {theater.city}, {theater.state}
+                            </span>
+                            {theater.website && (
+                              <span className="flex items-center gap-1">
+                                <Globe className="w-3 h-3 text-retro-cyan" />
+                                {new URL(theater.website).hostname}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 self-end md:self-center">
+                          <button 
+                            onClick={() => {
+                              setEditingTheater(theater);
+                              setIsAddFormOpen(true);
+                            }}
+                            className="p-2 bg-retro-cyan/10 text-retro-cyan border border-retro-cyan/30 rounded-lg hover:bg-retro-cyan hover:text-retro-navy transition-all active:scale-90"
+                            title="Edit Theater"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => theater.id && handleDelete(theater.id)}
+                            disabled={isDeleting === theater.id}
+                            className="p-2 bg-retro-pink/10 text-retro-pink border border-retro-pink/30 rounded-lg hover:bg-retro-pink hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                            title="Delete Theater"
+                          >
+                            {isDeleting === theater.id ? (
+                              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 className="w-5 h-5" />
+                            )}
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {filteredAndSortedTheaters.length === 0 && (
                 <div className="text-center py-20 border-2 border-dashed border-white/10 rounded-2xl">
@@ -286,6 +504,7 @@ export default function Admin() {
           </div>
         )}
       </div>
+      <ScrollToTop />
     </div>
   );
 }

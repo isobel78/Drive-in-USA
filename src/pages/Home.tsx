@@ -6,6 +6,7 @@ import { Theater } from '../types';
 import { TheaterCard } from '../components/TheaterCard';
 import { TheaterModal } from '../components/TheaterModal';
 import TheaterMap from '../components/TheaterMap';
+import { ScrollToTop } from '../components/ScrollToTop';
 import { calculateDistance } from '../lib/utils';
 
 type LocationChoice = 'granted' | 'denied' | 'later' | null;
@@ -141,10 +142,10 @@ export default function Home() {
       } else if (sortMethod === 'alphabetical') {
         return a.name.localeCompare(b.name);
       } else if (sortMethod === 'state') {
-        const stateCompare = a.state.localeCompare(b.state);
+        const stateA = a.state_long || a.state;
+        const stateB = b.state_long || b.state;
+        const stateCompare = stateA.localeCompare(stateB);
         if (stateCompare !== 0) return stateCompare;
-        const cityCompare = a.city.localeCompare(b.city);
-        if (cityCompare !== 0) return cityCompare;
         return a.name.localeCompare(b.name);
       }
       return a.name.localeCompare(b.name);
@@ -340,25 +341,119 @@ export default function Home() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <AnimatePresence mode="popLayout">
-                {sortedTheaters.map((theater, index) => (
-                  <motion.div
-                    key={theater.name + index}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
-                  >
-                    <TheaterCard
-                      theater={theater}
-                      distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
-                      onClick={() => setSelectedTheater(theater)}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+            <div className="space-y-12">
+              {sortMethod === 'state' ? (
+                Object.entries(
+                  sortedTheaters.reduce((acc, t) => {
+                    const stateName = t.state_long || t.state;
+                    if (!acc[stateName]) acc[stateName] = [];
+                    acc[stateName].push(t);
+                    return acc;
+                  }, {} as Record<string, Theater[]>)
+                )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([stateName, stateTheaters]) => (
+                  <div key={stateName} className="space-y-6">
+                    <motion.h2 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-6 h-6" />
+                        {stateName}
+                      </div>
+                      <span className="font-retro text-xs bg-retro-cyan/10 px-3 py-1 rounded-full border border-retro-cyan/30">
+                        {stateTheaters.length} {stateTheaters.length === 1 ? 'THEATER' : 'THEATERS'}
+                      </span>
+                    </motion.h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <AnimatePresence mode="popLayout">
+                        {stateTheaters.map((theater, index) => (
+                          <motion.div
+                            key={theater.name + index}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                          >
+                            <TheaterCard
+                              theater={theater}
+                              distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
+                              onClick={() => setSelectedTheater(theater)}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                ))
+              ) : sortMethod === 'alphabetical' ? (
+                Object.entries(
+                  sortedTheaters.reduce((acc, t) => {
+                    const firstChar = t.name.charAt(0).toUpperCase();
+                    const firstLetter = /^[0-9]/.test(firstChar) ? '#' : firstChar;
+                    if (!acc[firstLetter]) acc[firstLetter] = [];
+                    acc[firstLetter].push(t);
+                    return acc;
+                  }, {} as Record<string, Theater[]>)
+                )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([letter, letterTheaters]) => (
+                  <div key={letter} className="space-y-6">
+                    <motion.h2 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center gap-3"
+                    >
+                      <Film className="w-6 h-6" />
+                      {letter}
+                    </motion.h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <AnimatePresence mode="popLayout">
+                        {letterTheaters.map((theater, index) => (
+                          <motion.div
+                            key={theater.name + index}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                          >
+                            <TheaterCard
+                              theater={theater}
+                              distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
+                              onClick={() => setSelectedTheater(theater)}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AnimatePresence mode="popLayout">
+                    {sortedTheaters.map((theater, index) => (
+                      <motion.div
+                        key={theater.name + index}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                      >
+                        <TheaterCard
+                          theater={theater}
+                          distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
+                          onClick={() => setSelectedTheater(theater)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
 
             {sortedTheaters.length === 0 && (
@@ -467,6 +562,7 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ScrollToTop />
     </div>
   );
 }
