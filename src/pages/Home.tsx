@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw } from 'lucide-react';
+import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTheatersFromMap } from '../services/theaterService';
 import { Theater } from '../types';
@@ -8,6 +8,7 @@ import { TheaterModal } from '../components/TheaterModal';
 import TheaterMap from '../components/TheaterMap';
 import { ScrollToTop } from '../components/ScrollToTop';
 import { calculateDistance } from '../lib/utils';
+import { Link } from 'react-router-dom';
 
 type LocationChoice = 'granted' | 'denied' | 'later' | null;
 
@@ -50,6 +51,7 @@ export default function Home() {
           setShowLocationPrompt(false);
           setLocationChoice('granted');
           saveChoice('granted');
+          setError(null);
           setLoading(false);
         },
         (err) => {
@@ -109,10 +111,66 @@ export default function Home() {
   useEffect(() => {
     loadData();
 
-    if (locationChoice === null && !userLocation) {
-      setShowLocationPrompt(true);
+    // After a reload triggered by "Try Location Again", auto-request location.
+    const pendingRequest = (() => { try { return localStorage.getItem('pendingLocationRequest'); } catch { return null; } })();
+    if (pendingRequest) {
+      try { localStorage.removeItem('pendingLocationRequest'); } catch {}
+      // Give the browser a tick to settle, then attempt location directly.
+      // On Safari, navigator.permissions doesn't exist — calling getCurrentPosition
+      // directly is the only reliable way to pick up a newly-granted permission.
+      setTimeout(() => {
+        if (navigator.permissions) {
+          navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+            if (status.state === 'granted') {
+              requestLocation();
+            } else {
+              setShowLocationPrompt(true);
+            }
+          }).catch(() => setShowLocationPrompt(true));
+        } else {
+          // Safari: just call getCurrentPosition — it will succeed silently if
+          // the user already granted in Settings, or show its native prompt if not.
+          requestLocation();
+        }
+      }, 100);
     }
-  }, [loadData, locationChoice, userLocation]);
+
+    // Chrome/Firefox: if permission already granted on mount (non-pending path),
+    // silently acquire location. Also watch for live permission changes.
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+        if (status.state === 'granted' && !pendingRequest) {
+          requestLocation();
+        }
+        status.onchange = () => {
+          if (status.state === 'granted') {
+            window.location.reload();
+          }
+        };
+      }).catch(() => {});
+    }
+
+    // Visibility change: user went to Settings and came back.
+    // Chrome/Firefox: check Permissions API. Safari: just attempt getCurrentPosition —
+    // if granted it succeeds, if still denied the error handler fires silently.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && locationChoice === 'denied') {
+        if (navigator.permissions) {
+          navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+            if (status.state === 'granted') {
+              window.location.reload();
+            }
+          }).catch(() => {});
+        } else {
+          // Safari fallback: attempt location directly; success means they granted it
+          requestLocation();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadData, locationChoice, requestLocation]);
 
   const sortedTheaters = useMemo(() => {
     let result = [...theaters];
@@ -148,6 +206,7 @@ export default function Home() {
         if (stateCompare !== 0) return stateCompare;
         return a.name.localeCompare(b.name);
       }
+      // sortMethod is 'nearest' but location not yet acquired — sort alphabetically as interim
       return a.name.localeCompare(b.name);
     });
 
@@ -275,7 +334,7 @@ export default function Home() {
           ))}
         </div>
 
-        {!userLocation && (locationChoice === 'later' || locationChoice === 'granted') && (
+        {!userLocation && (locationChoice === 'later' || locationChoice === 'granted' || locationChoice === null || locationChoice === 'denied') && (
           <div className="flex justify-center pt-2">
             <button 
               onClick={() => setShowLocationPrompt(true)}
@@ -324,9 +383,43 @@ export default function Home() {
             <p className="font-retro text-retro-cyan animate-pulse">Loading the reels...</p>
           </div>
         ) : error ? (
-          <div className="text-center py-20 bg-retro-red/20 border-2 border-retro-red rounded-xl p-8">
-            <p className="text-retro-red font-display text-2xl mb-2">STATIC DETECTED!</p>
-            <p className="text-white">{error}</p>
+          <div className="text-center py-20 bg-retro-red/20 border-2 border-retro-red rounded-xl p-8 flex flex-col items-center">
+            <p className="text-retro-red font-display text-2xl mb-2 uppercase tracking-tighter">STATIC DETECTED!</p>
+            <p className="text-white mb-6 max-w-md">{error}</p>
+            <div className="flex flex-col items-center gap-4">
+              <button
+                onClick={() => {
+                  setSortMethod('alphabetical');
+                  setError(null);
+                  setLocationChoice('later');
+                  saveChoice('later');
+                }}
+                className="bg-retro-cyan text-retro-navy font-retro px-8 py-4 rounded-xl shadow-[0_0_20px_rgba(0,255,255,0.3)] active:scale-95 transition-transform uppercase text-sm flex items-center gap-2"
+              >
+                <RefreshCcw className="w-4 h-4" />
+                Back to A-Z Sort
+              </button>
+              <button
+                onClick={() => {
+                  // If previously denied, the browser caches the denial for this page
+                  // session — a reload is required for the new grant to take effect.
+                  if (locationChoice === 'denied') {
+                    saveChoice('later');
+                    try { localStorage.setItem('pendingLocationRequest', '1'); } catch {}
+                    window.location.reload();
+                  } else {
+                    setError(null);
+                    setLocationChoice('later');
+                    saveChoice('later');
+                    setShowLocationPrompt(true);
+                  }
+                }}
+                className="text-retro-pink font-retro text-xs uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Compass className="w-3 h-3" />
+                Try Location Again
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
@@ -432,6 +525,11 @@ export default function Home() {
                     </div>
                   </div>
                 ))
+              ) : !userLocation ? (
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                  <Loader2 className="w-12 h-12 text-retro-pink animate-spin" />
+                  <p className="font-retro text-retro-cyan animate-pulse">Locating your signal...</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <AnimatePresence mode="popLayout">
@@ -474,9 +572,16 @@ export default function Home() {
             <Ticket className="w-6 h-6" />
             <Star className="w-6 h-6" />
           </div>
-          <p className="mt-8 text-[10px] font-retro text-gray-600 uppercase tracking-[0.3em]">
+          <p className="mt-8 text-[10px] font-retro text-gray-600 uppercase tracking-[0.3em] mb-4">
             Drive-In Movie Theater Locator &copy; 2026
           </p>
+          <Link 
+            to="/install" 
+            className="inline-flex items-center gap-2 text-retro-cyan font-retro text-[10px] uppercase tracking-widest hover:text-white transition-colors border border-retro-cyan/30 px-4 py-2 rounded-full"
+          >
+            <Download className="w-3 h-3" />
+            Install App Guide
+          </Link>
         </div>
       </footer>
 
@@ -496,14 +601,14 @@ export default function Home() {
             className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md touch-manipulation"
             onClick={() => {
               setShowLocationPrompt(false);
-              if (locationChoice === null) {
+              if (!locationChoice) {
                 setLocationChoice('later');
                 saveChoice('later');
               }
             }}
             onTouchEnd={() => {
               setShowLocationPrompt(false);
-              if (locationChoice === null) {
+              if (!locationChoice) {
                 setLocationChoice('later');
                 saveChoice('later');
               }
