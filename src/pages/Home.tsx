@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw, Download } from 'lucide-react';
+import { Search, MapPin, Loader2, Film, Ticket, Star, Compass, X, Map as MapIcon, RefreshCcw, Download, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTheatersFromMap } from '../services/theaterService';
 import { Theater } from '../types';
@@ -36,6 +36,14 @@ export default function Home() {
     }
   });
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (sectionKey: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
 
   const requestLocation = useCallback(() => {
     if (navigator.geolocation) {
@@ -445,43 +453,68 @@ export default function Home() {
                   }, {} as Record<string, Theater[]>)
                 )
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([stateName, stateTheaters]) => (
-                  <div key={stateName} className="space-y-6">
-                    <motion.h2 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <MapPin className="w-6 h-6" />
-                        {stateName}
-                      </div>
-                      <span className="font-retro text-xs bg-retro-cyan/10 px-3 py-1 rounded-full border border-retro-cyan/30">
-                        {stateTheaters.length} {stateTheaters.length === 1 ? 'THEATER' : 'THEATERS'}
-                      </span>
-                    </motion.h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <AnimatePresence mode="popLayout">
-                        {stateTheaters.map((theater, index) => (
+                .map(([stateName, stateTheaters]) => {
+                  const isExpanded = expandedSections[stateName];
+                  return (
+                    <div key={stateName} className="space-y-6">
+                      <motion.button 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        onClick={() => toggleSection(stateName)}
+                        className="w-full font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
                           <motion.div
-                            key={theater.name + index}
-                            layout
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                            animate={{ rotate: isExpanded ? 0 : -90 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
                           >
-                            <TheaterCard
-                              theater={theater}
-                              distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
-                              onClick={() => setSelectedTheater(theater)}
-                            />
+                            <ChevronDown className="w-6 h-6 text-retro-pink" />
                           </motion.div>
-                        ))}
+                          <div className="flex items-center gap-3">
+                            <MapPin className="w-6 h-6" />
+                            {stateName}
+                          </div>
+                        </div>
+                        <span className="font-retro text-xs bg-retro-cyan/10 px-3 py-1 rounded-full border border-retro-cyan/30 group-hover:bg-retro-cyan/20 transition-colors">
+                          {stateTheaters.length} {stateTheaters.length === 1 ? 'THEATER' : 'THEATERS'}
+                        </span>
+                      </motion.button>
+                      
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
+                              <AnimatePresence mode="popLayout">
+                                {stateTheaters.map((theater, index) => (
+                                  <motion.div
+                                    key={theater.name + index}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                                  >
+                                    <TheaterCard
+                                      theater={theater}
+                                      distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
+                                      onClick={() => setSelectedTheater(theater)}
+                                    />
+                                  </motion.div>
+                                ))}
+                              </AnimatePresence>
+                            </div>
+                          </motion.div>
+                        )}
                       </AnimatePresence>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : sortMethod === 'alphabetical' ? (
                 Object.entries(
                   sortedTheaters.reduce((acc, t) => {
@@ -493,38 +526,64 @@ export default function Home() {
                   }, {} as Record<string, Theater[]>)
                 )
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([letter, letterTheaters]) => (
-                  <div key={letter} className="space-y-6">
-                    <motion.h2 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center gap-3"
-                    >
-                      <Film className="w-6 h-6" />
-                      {letter}
-                    </motion.h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <AnimatePresence mode="popLayout">
-                        {letterTheaters.map((theater, index) => (
+                .map(([letter, letterTheaters]) => {
+                  const isExpanded = expandedSections[letter];
+                  return (
+                    <div key={letter} className="space-y-6">
+                      <motion.button 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        onClick={() => toggleSection(letter)}
+                        className="w-full font-display text-3xl text-retro-cyan border-b-2 border-retro-cyan/30 pb-2 flex items-center gap-3 group cursor-pointer"
+                      >
+                        <motion.div
+                          animate={{ rotate: isExpanded ? 0 : -90 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                          <ChevronDown className="w-6 h-6 text-retro-pink" />
+                        </motion.div>
+                        <Film className="w-6 h-6" />
+                        {letter}
+                        <span className="ml-auto font-retro text-xs bg-retro-cyan/10 px-3 py-1 rounded-full border border-retro-cyan/30 group-hover:bg-retro-cyan/20 transition-colors">
+                          {letterTheaters.length}
+                        </span>
+                      </motion.button>
+                      
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
                           <motion.div
-                            key={theater.name + index}
-                            layout
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="overflow-hidden"
                           >
-                            <TheaterCard
-                              theater={theater}
-                              distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
-                              onClick={() => setSelectedTheater(theater)}
-                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
+                              <AnimatePresence mode="popLayout">
+                                {letterTheaters.map((theater, index) => (
+                                  <motion.div
+                                    key={theater.name + index}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                                  >
+                                    <TheaterCard
+                                      theater={theater}
+                                      distance={userLocation ? calculateDistance(userLocation.lat, userLocation.lng, theater.lat, theater.lng) : undefined}
+                                      onClick={() => setSelectedTheater(theater)}
+                                    />
+                                  </motion.div>
+                                ))}
+                              </AnimatePresence>
+                            </div>
                           </motion.div>
-                        ))}
+                        )}
                       </AnimatePresence>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : !userLocation ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <Loader2 className="w-12 h-12 text-retro-pink animate-spin" />
